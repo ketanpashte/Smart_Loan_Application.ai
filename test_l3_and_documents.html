@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L3 Applications and Document Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #3B82F6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #2563EB;
+        }
+        .button.success {
+            background: #10B981;
+        }
+        .button.warning {
+            background: #F59E0B;
+        }
+        .button.danger {
+            background: #EF4444;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #F3F4F6;
+        }
+        .error {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+        .success {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>SmartLoan L3 Applications and Document Test</h1>
+    
+    <div class="container">
+        <h2>L3 Applications Test</h2>
+        <p>Test the L3 applications functionality:</p>
+        
+        <button class="button" onclick="fetchL3Applications()">Fetch L3 Applications</button>
+        <button class="button success" onclick="createTestL3Application()">Create Test L3 Application</button>
+        <button class="button warning" onclick="forceExistingToL3()">Force Existing to L3</button>
+        
+        <div id="l3Result" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Document Test</h2>
+        <p>Test the document functionality:</p>
+        
+        <input type="number" id="applicationId" placeholder="Application ID" value="1" style="padding: 8px; margin: 5px;">
+        <button class="button" onclick="fetchDocuments()">Fetch Documents</button>
+        <button class="button success" onclick="createMockDocuments()">Create Mock Documents</button>
+        
+        <div id="docResult" class="result" style="display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Backend Status</h2>
+        <p>Check if the backend is running:</p>
+        
+        <button class="button" onclick="checkBackendStatus()">Check Backend Status</button>
+        
+        <div id="statusResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        
+        async function makeRequest(url, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(API_BASE + url, options);
+                const data = await response.json();
+                
+                return {
+                    success: response.ok,
+                    data,
+                    status: response.status
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+        
+        function showResult(elementId, content, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.innerHTML = content;
+        }
+        
+        async function fetchL3Applications() {
+            const result = await makeRequest('/api/workflow/l3/applications');
+            
+            if (result.success) {
+                let content = `<h3>L3 Applications (${result.data.length})</h3>`;
+                if (result.data.length > 0) {
+                    content += '<table><tr><th>ID</th><th>Application ID</th><th>Applicant</th><th>Loan Amount</th><th>Status</th></tr>';
+                    result.data.forEach(app => {
+                        content += `<tr>
+                            <td>${app.id}</td>
+                            <td>${app.applicationId}</td>
+                            <td>${app.applicantName}</td>
+                            <td>₹${(app.loanAmount / 100000).toFixed(1)}L</td>
+                            <td>${app.status}</td>
+                        </tr>`;
+                    });
+                    content += '</table>';
+                } else {
+                    content += '<p>No L3 applications found.</p>';
+                }
+                showResult('l3Result', content);
+            } else {
+                showResult('l3Result', `Error: ${result.error || result.data?.message || 'Unknown error'}`, true);
+            }
+        }
+        
+        async function createTestL3Application() {
+            const result = await makeRequest('/api/admin/test/create-l3-application', 'POST');
+            
+            if (result.success) {
+                showResult('l3Result', `Test application created: ${result.data.applicationId} (ID: ${result.data.id})`);
+                setTimeout(fetchL3Applications, 1000);
+            } else {
+                showResult('l3Result', `Error creating test application: ${result.error || result.data?.message}`, true);
+            }
+        }
+        
+        async function forceExistingToL3() {
+            const result = await makeRequest('/api/workflow/test/force-l3-status', 'POST');
+            
+            if (result.success) {
+                showResult('l3Result', `Forced ${result.data.updatedCount} applications to L3 status`);
+                setTimeout(fetchL3Applications, 1000);
+            } else {
+                showResult('l3Result', `Error forcing applications to L3: ${result.error || result.data?.message}`, true);
+            }
+        }
+        
+        async function fetchDocuments() {
+            const appId = document.getElementById('applicationId').value;
+            const result = await makeRequest(`/api/documents/application/${appId}`);
+            
+            if (result.success) {
+                let content = `<h3>Documents for Application ${appId} (${result.data.length})</h3>`;
+                if (result.data.length > 0) {
+                    content += '<table><tr><th>ID</th><th>Type</th><th>File Name</th><th>Size</th><th>Uploaded By</th></tr>';
+                    result.data.forEach(doc => {
+                        content += `<tr>
+                            <td>${doc.id}</td>
+                            <td>${doc.documentTypeName || doc.documentType}</td>
+                            <td>${doc.originalFileName}</td>
+                            <td>${(doc.fileSize / 1024).toFixed(1)} KB</td>
+                            <td>${doc.uploadedBy}</td>
+                        </tr>`;
+                    });
+                    content += '</table>';
+                } else {
+                    content += '<p>No documents found for this application.</p>';
+                }
+                showResult('docResult', content);
+            } else {
+                showResult('docResult', `Error: ${result.error || result.data?.message || 'Unknown error'}`, true);
+            }
+        }
+        
+        async function createMockDocuments() {
+            const appId = document.getElementById('applicationId').value;
+            const result = await makeRequest(`/api/documents/test/create-mock-documents/${appId}`, 'POST');
+            
+            if (result.success) {
+                showResult('docResult', `Created ${result.data.length} mock documents for application ${appId}`);
+                setTimeout(fetchDocuments, 1000);
+            } else {
+                showResult('docResult', `Error creating mock documents: ${result.error || result.data?.message}`, true);
+            }
+        }
+        
+        async function checkBackendStatus() {
+            const result = await makeRequest('/api/auth/health');
+            
+            if (result.success) {
+                showResult('statusResult', 'Backend is running and accessible!');
+            } else {
+                showResult('statusResult', `Backend is not accessible: ${result.error}`, true);
+            }
+        }
+        
+        // Auto-check backend status on page load
+        window.onload = function() {
+            checkBackendStatus();
+        };
+    </script>
+</body>
+</html>
